@@ -1,6 +1,11 @@
-Nama_Pengguna = "Ahmad Rifai";
-Nama_Aplikasi = "Sistem Sewa Mobil Online";
-Tahun_Rilis = 2025;
-Status_Aktif = True;
+nama_pengguna = "Ahmad Rifai"
+nama_aplikasi = "Sistem Sewa Mobil Online"
+tahun_rilis = 2025
+status_aktif = True
 
-print("Selamat Datang Di Aplikasi Yang bernama", Nama_Aplikasi, "Yang dirilis Oleh", Nama_Pengguna, "pada Tahun", Tahun_Rilis, "dan masih", Status_Aktif, "Sampai saat ini")
+if status_aktif == True:
+    status_aktif = "Aktif"
+else:
+    status_aktif = "Tidak Aktif"
+
+print("Selamat Datang Di Aplikasi Yang bernama", nama_aplikasi, "Yang dirilis Oleh", nama_pengguna, "pada Tahun", tahun_rilis, "dan masih", status_aktif, "Sampai saat ini")
