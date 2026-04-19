@@ -7,19 +7,23 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
 from jose import jwt, JWTError
 import os
-import shutil
+from dotenv import load_dotenv
 
-# --- KONFIGURASI KEAMANAN ---
-SECRET_KEY = "kunci-rahasia-super-aman-renmol"
-ALGORITHM = "HS256"
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+# [PERBAIKAN 1] Import Cloudinary yang sebelumnya hilang!
+import cloudinary
+import cloudinary.uploader
 
-# --- PERSIAPAN FOLDER GAMBAR ---
-os.makedirs("static/images", exist_ok=True)
+# Memanggil brankas rahasia
+load_dotenv() 
 
 # --- KONFIGURASI DATABASE ---
-SQLALCHEMY_DATABASE_URL = "sqlite:///./renmol.db"
-engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
+# [PERBAIKAN 2] Hanya menggunakan URL yang aman dari .env, tidak ada lagi password yang tertulis manual
+DATABASE_URL = os.environ.get("SUPABASE_URL")
+
+if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
@@ -30,17 +34,31 @@ class MobilDB(Base):
     kategori = Column(String)
     harga_per_hari = Column(Integer)
     status_tersedia = Column(Boolean, default=True)
-    gambar_url = Column(String, nullable=True) # [BARU] Kolom untuk menyimpan link foto
+    gambar_url = Column(String, nullable=True)
 
 Base.metadata.create_all(bind=engine)
+
+# --- KONFIGURASI CLOUDINARY ---
+cloudinary.config( 
+  cloud_name = os.environ.get("CLOUDINARY_NAME"), 
+  api_key = os.environ.get("CLOUDINARY_API_KEY"), 
+  api_secret = os.environ.get("CLOUDINARY_API_SECRET"),
+  secure = True
+)
+
+# --- KONFIGURASI KEAMANAN ---
+SECRET_KEY = "kunci-rahasia-super-aman-renmol"
+ALGORITHM = "HS256"
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+
+# --- PERSIAPAN FOLDER GAMBAR ---
+os.makedirs("static/images", exist_ok=True)
 
 # --- MENGAKTIFKAN FASTAPI ---
 app = FastAPI()
 
-# [BARU] Mengizinkan Next.js untuk mengakses folder static/images via URL
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
 app.add_middleware(
     CORSMiddleware, allow_origins=["*"], allow_credentials=True, 
     allow_methods=["*"], allow_headers=["*"],
@@ -76,24 +94,23 @@ def lihat_daftar_mobil(db: Session = Depends(get_db)):
     armada = db.query(MobilDB).all()
     return {"data_armada": armada}
 
-# [BARU] Rute Tambah Mobil kini menggunakan Form() agar bisa menerima File
 @app.post("/tambah-mobil")
 def tambah_mobil(
     nama_mobil: str = Form(...),
     kategori: str = Form(...),
     harga_per_hari: int = Form(...),
-    gambar: UploadFile = File(None), # Gambar bersifat opsional
+    gambar: UploadFile = File(None),
     db: Session = Depends(get_db),
     admin: str = Depends(cek_admin)
 ):
     url_gambar_tersimpan = None
     
-    # Jika admin mengunggah gambar, simpan ke folder static/images
     if gambar:
-        lokasi_file = f"static/images/{gambar.filename}"
-        with open(lokasi_file, "wb+") as file_object:
-            shutil.copyfileobj(gambar.file, file_object)
-        url_gambar_tersimpan = lokasi_file # Menyimpan path-nya ke database
+        try:
+            hasil_upload = cloudinary.uploader.upload(gambar.file)
+            url_gambar_tersimpan = hasil_upload.get("secure_url") 
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Gagal upload ke Cloudinary: {str(e)}")
 
     mobil_baru = MobilDB(
         nama_mobil=nama_mobil,
