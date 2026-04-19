@@ -92,7 +92,10 @@ export default function HalamanUtama() {
       muatData();
       alert("Mobil berhasil ditambahkan!");
     } else {
-      alert("Gagal menambah data!");
+      // [BARU] Menangkap pesan error asli dari backend
+      const errorData = await res.json();
+      console.error("Detail Error:", errorData);
+      alert(`Gagal menambah data! Alasan: ${JSON.stringify(errorData.detail)}`);
     }
   };
 
