@@ -60,7 +60,7 @@ app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 app.add_middleware(
-    CORSMiddleware, allow_origins=["*"], allow_credentials=True, 
+    CORSMiddleware, allow_origins=["https://renmol-backend.vercel.app"], allow_credentials=True, 
     allow_methods=["*"], allow_headers=["*"],
 )
 
