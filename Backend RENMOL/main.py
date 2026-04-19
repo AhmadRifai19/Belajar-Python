@@ -7,15 +7,23 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
 from jose import jwt, JWTError
 import os
-import shutil
-import cloudinary
-import cloudinary.uploader
+from dotenv import load_dotenv
 
-# Ganti dengan data dari Dashboard Cloudinary Anda
+# Memanggil brankas rahasia
+load_dotenv() 
+
+# --- KONFIGURASI DATABASE ---
+DATABASE_URL = os.environ.get("SUPABASE_URL")
+if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+# ... (kode engine, SessionLocal, dll tetap sama) ...
+
+# --- KONFIGURASI CLOUDINARY ---
 cloudinary.config( 
-  cloud_name = "NAMA_CLOUD_ANDA", 
-  api_key = "API_KEY_ANDA", 
-  api_secret = "API_SECRET_ANDA",
+  cloud_name = os.environ.get("CLOUDINARY_NAME"), 
+  api_key = os.environ.get("CLOUDINARY_API_KEY"), 
+  api_secret = os.environ.get("CLOUDINARY_API_SECRET"),
   secure = True
 )
 

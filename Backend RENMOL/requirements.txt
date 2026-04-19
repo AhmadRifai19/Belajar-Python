@@ -6,3 +6,4 @@ python-jose[cryptography]
 python-multipart
 psycopg2-binary
 cloudinary
+python-dotenv
