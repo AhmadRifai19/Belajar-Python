@@ -19,7 +19,7 @@ export default function HalamanUtama() {
   const [namaMobil, setNamaMobil] = useState('');
   const [kategori, setKategori] = useState('Mobil Keluarga');
   const [harga, setHarga] = useState('');
-  const [gambar, setGambar] = useState<File | null>(null); // [BARU] State untuk file gambar
+  const [gambar, setGambar] = useState<File | null>(null); 
   
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -31,7 +31,8 @@ export default function HalamanUtama() {
 
   const muatData = async () => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/mobil`,);
+      // [PERBAIKAN 1] Menghapus koma nyasar
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/mobil`);
       const data = await res.json();
       setArmada(data.data_armada);
     } catch (err) {
@@ -47,13 +48,15 @@ export default function HalamanUtama() {
     formData.append('username', username);
     formData.append('password', password);
 
-    const res = await fetch('${process.env.NEXT_PUBLIC_API_URL}/login', { method: 'POST', body: formData });
+    // [PERBAIKAN 2] Menggunakan backtick (`) agar URL terbaca dengan benar
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/login`, { method: 'POST', body: formData });
     if (res.ok) {
       const data = await res.json();
       localStorage.setItem('token', data.access_token);
       setIsLoggedIn(true);
+      alert("Login Berhasil!");
     } else {
-      alert("Login Gagal!");
+      alert("Login Gagal! Pastikan username dan password benar.");
     }
   };
 
@@ -65,7 +68,6 @@ export default function HalamanUtama() {
   const handleTambahMobil = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
-    // [BARU] Menggunakan FormData karena kita mengirim File fisik, bukan sekadar Teks JSON
     const dataForm = new FormData();
     dataForm.append('nama_mobil', namaMobil);
     dataForm.append('kategori', kategori);
@@ -74,9 +76,9 @@ export default function HalamanUtama() {
       dataForm.append('gambar', gambar);
     }
 
-    const res = await fetch('${process.env.NEXT_PUBLIC_API_URL}/tambah-mobil', {
+    // [PERBAIKAN 3] Menggunakan backtick (`) agar URL terbaca dengan benar
+    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/tambah-mobil`, {
       method: 'POST',
-      // CATATAN PENTING: Jangan set 'Content-Type' saat memakai FormData, biarkan browser yang mengatur otomatis
       headers: {
         'Authorization': `Bearer ${localStorage.getItem('token')}` 
       },
@@ -86,8 +88,9 @@ export default function HalamanUtama() {
     if (res.ok) {
       setNamaMobil(''); setHarga(''); setGambar(null);
       const inputGambar = document.getElementById('input-gambar') as HTMLInputElement | null;
-      if (inputGambar) inputGambar.value = ""; // Mengosongkan form file
+      if (inputGambar) inputGambar.value = ""; 
       muatData();
+      alert("Mobil berhasil ditambahkan!");
     } else {
       alert("Gagal menambah data!");
     }
@@ -150,7 +153,6 @@ export default function HalamanUtama() {
                 <input type="number" value={harga} onChange={(e) => setHarga(e.target.value)} required className="w-full border px-4 py-3 rounded-xl" />
               </div>
               
-              {/* [BARU] Input untuk Foto */}
               <div>
                 <label className="block text-xs font-bold text-slate-500 mb-2">Foto Mobil</label>
                 <input type="file" id="input-gambar" accept="image/*" onChange={(e) => setGambar(e.target.files?.[0] ?? null)} className="w-full border px-2 py-2.5 rounded-xl text-sm" />
@@ -165,10 +167,10 @@ export default function HalamanUtama() {
           {armada.map((mobil) => (
             <div key={mobil.id} className="group bg-white rounded-3xl p-4 border border-slate-200 shadow-sm flex flex-col justify-between">
               
-              {/* [BARU] Logika Menampilkan Gambar */}
               <div className="w-full h-48 bg-slate-100 rounded-2xl mb-4 overflow-hidden relative">
                 {mobil.gambar_url ? (
-                  <img src={`${process.env.NEXT_PUBLIC_API_URL}/${mobil.gambar_url}`} alt={mobil.nama_mobil} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  /* [PERBAIKAN 4] Menggunakan gambar_url langsung karena Cloudinary memberikan link absolut penuh (HTTPS) */
+                  <img src={mobil.gambar_url} alt={mobil.nama_mobil} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-4xl opacity-20">🚗</div>
                 )}
