@@ -31,7 +31,7 @@ export default function HalamanUtama() {
 
   const muatData = async () => {
     try {
-      const res = await fetch('http://127.0.0.1:8000/mobil');
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/mobil`,);
       const data = await res.json();
       setArmada(data.data_armada);
     } catch (err) {
@@ -47,7 +47,7 @@ export default function HalamanUtama() {
     formData.append('username', username);
     formData.append('password', password);
 
-    const res = await fetch('http://127.0.0.1:8000/login', { method: 'POST', body: formData });
+    const res = await fetch('${process.env.NEXT_PUBLIC_API_URL}/login', { method: 'POST', body: formData });
     if (res.ok) {
       const data = await res.json();
       localStorage.setItem('token', data.access_token);
@@ -74,7 +74,7 @@ export default function HalamanUtama() {
       dataForm.append('gambar', gambar);
     }
 
-    const res = await fetch('http://127.0.0.1:8000/tambah-mobil', {
+    const res = await fetch('${process.env.NEXT_PUBLIC_API_URL}/tambah-mobil', {
       method: 'POST',
       // CATATAN PENTING: Jangan set 'Content-Type' saat memakai FormData, biarkan browser yang mengatur otomatis
       headers: {
@@ -95,7 +95,7 @@ export default function HalamanUtama() {
 
   const hapusMobil = async (id: number) => {
     if (confirm("Yakin ingin menghapus mobil ini?")) {
-      const res = await fetch(`http://127.0.0.1:8000/mobil/${id}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/mobil/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
       });
@@ -168,7 +168,7 @@ export default function HalamanUtama() {
               {/* [BARU] Logika Menampilkan Gambar */}
               <div className="w-full h-48 bg-slate-100 rounded-2xl mb-4 overflow-hidden relative">
                 {mobil.gambar_url ? (
-                  <img src={`http://127.0.0.1:8000/${mobil.gambar_url}`} alt={mobil.nama_mobil} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  <img src={`${process.env.NEXT_PUBLIC_API_URL}/${mobil.gambar_url}`} alt={mobil.nama_mobil} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-4xl opacity-20">🚗</div>
                 )}
