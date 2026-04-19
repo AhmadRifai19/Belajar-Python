@@ -9,15 +9,34 @@ from jose import jwt, JWTError
 import os
 from dotenv import load_dotenv
 
+# [PERBAIKAN 1] Import Cloudinary yang sebelumnya hilang!
+import cloudinary
+import cloudinary.uploader
+
 # Memanggil brankas rahasia
 load_dotenv() 
 
 # --- KONFIGURASI DATABASE ---
+# [PERBAIKAN 2] Hanya menggunakan URL yang aman dari .env, tidak ada lagi password yang tertulis manual
 DATABASE_URL = os.environ.get("SUPABASE_URL")
+
 if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-# ... (kode engine, SessionLocal, dll tetap sama) ...
+engine = create_engine(DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
+
+class MobilDB(Base):
+    __tablename__ = "mobil"
+    id = Column(Integer, primary_key=True, index=True)
+    nama_mobil = Column(String, index=True)
+    kategori = Column(String)
+    harga_per_hari = Column(Integer)
+    status_tersedia = Column(Boolean, default=True)
+    gambar_url = Column(String, nullable=True)
+
+Base.metadata.create_all(bind=engine)
 
 # --- KONFIGURASI CLOUDINARY ---
 cloudinary.config( 
@@ -35,35 +54,11 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 # --- PERSIAPAN FOLDER GAMBAR ---
 os.makedirs("static/images", exist_ok=True)
 
-# --- KONFIGURASI DATABASE (VERSI SUPABASE) ---
-DATABASE_URL = "postgresql://postgres:AhmadRifaiNiko19@db.lnwbadhgtmrimfbeovts.supabase.co:5432/postgres"
-
-# Perbaikan kecil untuk SQLAlchemy agar kompatibel dengan PostgreSQL modern
-if DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
-
-engine = create_engine(DATABASE_URL) # Tidak perlu connect_args={"check_same_thread": False} di PostgreSQL
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
-
-class MobilDB(Base):
-    __tablename__ = "mobil"
-    id = Column(Integer, primary_key=True, index=True)
-    nama_mobil = Column(String, index=True)
-    kategori = Column(String)
-    harga_per_hari = Column(Integer)
-    status_tersedia = Column(Boolean, default=True)
-    gambar_url = Column(String, nullable=True) # [BARU] Kolom untuk menyimpan link foto
-
-Base.metadata.create_all(bind=engine)
-
 # --- MENGAKTIFKAN FASTAPI ---
 app = FastAPI()
 
-# [BARU] Mengizinkan Next.js untuk mengakses folder static/images via URL
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-origins = ["http://localhost:3000", "http://127.0.0.1:3000"]
 app.add_middleware(
     CORSMiddleware, allow_origins=["*"], allow_credentials=True, 
     allow_methods=["*"], allow_headers=["*"],
@@ -99,29 +94,24 @@ def lihat_daftar_mobil(db: Session = Depends(get_db)):
     armada = db.query(MobilDB).all()
     return {"data_armada": armada}
 
-# [BARU] Rute Tambah Mobil dengan Logika Cloudinary
 @app.post("/tambah-mobil")
 def tambah_mobil(
     nama_mobil: str = Form(...),
     kategori: str = Form(...),
     harga_per_hari: int = Form(...),
-    gambar: UploadFile = File(None), # Gambar bersifat opsional
+    gambar: UploadFile = File(None),
     db: Session = Depends(get_db),
     admin: str = Depends(cek_admin)
 ):
     url_gambar_tersimpan = None
     
-    # Jika admin mengunggah gambar, kirim langsung ke Cloudinary
     if gambar:
         try:
-            # Upload file langsung ke awan
             hasil_upload = cloudinary.uploader.upload(gambar.file)
-            # Ambil URL aman (https) dari Cloudinary
             url_gambar_tersimpan = hasil_upload.get("secure_url") 
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Gagal upload ke Cloudinary: {str(e)}")
 
-    # Menyimpan data (termasuk link gambar dari Cloudinary) ke Supabase
     mobil_baru = MobilDB(
         nama_mobil=nama_mobil,
         kategori=kategori,
