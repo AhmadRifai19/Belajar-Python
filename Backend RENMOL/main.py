@@ -8,6 +8,16 @@ from fastapi.staticfiles import StaticFiles
 from jose import jwt, JWTError
 import os
 import shutil
+import cloudinary
+import cloudinary.uploader
+
+# Ganti dengan data dari Dashboard Cloudinary Anda
+cloudinary.config( 
+  cloud_name = "NAMA_CLOUD_ANDA", 
+  api_key = "API_KEY_ANDA", 
+  api_secret = "API_SECRET_ANDA",
+  secure = True
+)
 
 # --- KONFIGURASI KEAMANAN ---
 SECRET_KEY = "kunci-rahasia-super-aman-renmol"
@@ -17,9 +27,14 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 # --- PERSIAPAN FOLDER GAMBAR ---
 os.makedirs("static/images", exist_ok=True)
 
-# --- KONFIGURASI DATABASE ---
-SQLALCHEMY_DATABASE_URL = "sqlite:///./renmol.db"
-engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
+# --- KONFIGURASI DATABASE (VERSI SUPABASE) ---
+DATABASE_URL = "postgresql://postgres:AhmadRifaiNiko19@db.lnwbadhgtmrimfbeovts.supabase.co:5432/postgres"
+
+# Perbaikan kecil untuk SQLAlchemy agar kompatibel dengan PostgreSQL modern
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+engine = create_engine(DATABASE_URL) # Tidak perlu connect_args={"check_same_thread": False} di PostgreSQL
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
@@ -76,7 +91,7 @@ def lihat_daftar_mobil(db: Session = Depends(get_db)):
     armada = db.query(MobilDB).all()
     return {"data_armada": armada}
 
-# [BARU] Rute Tambah Mobil kini menggunakan Form() agar bisa menerima File
+# [BARU] Rute Tambah Mobil dengan Logika Cloudinary
 @app.post("/tambah-mobil")
 def tambah_mobil(
     nama_mobil: str = Form(...),
@@ -88,13 +103,17 @@ def tambah_mobil(
 ):
     url_gambar_tersimpan = None
     
-    # Jika admin mengunggah gambar, simpan ke folder static/images
+    # Jika admin mengunggah gambar, kirim langsung ke Cloudinary
     if gambar:
-        lokasi_file = f"static/images/{gambar.filename}"
-        with open(lokasi_file, "wb+") as file_object:
-            shutil.copyfileobj(gambar.file, file_object)
-        url_gambar_tersimpan = lokasi_file # Menyimpan path-nya ke database
+        try:
+            # Upload file langsung ke awan
+            hasil_upload = cloudinary.uploader.upload(gambar.file)
+            # Ambil URL aman (https) dari Cloudinary
+            url_gambar_tersimpan = hasil_upload.get("secure_url") 
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Gagal upload ke Cloudinary: {str(e)}")
 
+    # Menyimpan data (termasuk link gambar dari Cloudinary) ke Supabase
     mobil_baru = MobilDB(
         nama_mobil=nama_mobil,
         kategori=kategori,
