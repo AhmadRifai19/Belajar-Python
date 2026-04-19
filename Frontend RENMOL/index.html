@@ -34,7 +34,7 @@
             </form>
         </div>
 
-        <div id="section-admin" class="hidden bg-white p-6 rounded-xl shadow-sm border border-blue-200 border-l-4 border-l-blue-600 mb-10">
+        <div id="section-admin" class="hidden bg-white p-6 rounded-xl shadow-sm border-l-4 border-l-blue-600 border-y border-r border-blue-200 mb-10">
             <h2 class="text-xl font-bold text-gray-700 mb-4">➕ Tambah Armada Baru (Mode Admin)</h2>
             <form id="form-tambah" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                 <div>
@@ -66,7 +66,7 @@
             </div>
     </div>
 
-    <div id="modal-edit" class="fixed inset-0 bg-black bg-opacity-50 hidden flex justify-center items-center z-50">
+    <div id="modal-edit" class="fixed inset-0 bg-black/50 hidden justify-center items-center z-50" style="display:none;">
         <div class="bg-white p-6 rounded-xl shadow-lg w-full max-w-md mx-4">
             <h2 class="text-xl font-bold text-gray-800 mb-4">✏️ Edit Data Mobil</h2>
             <form id="form-edit" class="space-y-4">
@@ -236,10 +236,16 @@
             document.getElementById('edit-kategori').value = kategori;
             document.getElementById('edit-harga').value = harga;
             document.getElementById('edit-status').value = status ? "true" : "false";
-            document.getElementById('modal-edit').classList.remove('hidden');
+            const modal = document.getElementById('modal-edit');
+            modal.classList.remove('hidden');
+            modal.style.display = 'flex';
         }
 
-        function tutupModal() { document.getElementById('modal-edit').classList.add('hidden'); }
+        function tutupModal() {
+            const modal = document.getElementById('modal-edit');
+            modal.classList.add('hidden');
+            modal.style.display = 'none';
+        }
 
         document.getElementById('form-edit').addEventListener('submit', function(e) {
             e.preventDefault();
