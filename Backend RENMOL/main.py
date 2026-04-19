@@ -1,145 +1,126 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy import create_engine, Column, Integer, String, Boolean
 from sqlalchemy.orm import sessionmaker, declarative_base, Session
-from fastapi import FastAPI, Depends, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
+
+# [BARU] Impor alat Keamanan
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from jose import jwt, JWTError
+
+# --- KONFIGURASI KEAMANAN (JWT) ---
+# [BARU] Kunci rahasia untuk mencetak tiket (Jangan beritahu siapa pun!)
+SECRET_KEY = "kunci-rahasia-super-aman-renmol"
+ALGORITHM = "HS256"
+# [BARU] Memberitahu FastAPI di mana rute pintu masuknya
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
 # --- 1. KONFIGURASI DATABASE SQLITE ---
-# Membuat file bernama 'renmol.db' di folder yang sama
 SQLALCHEMY_DATABASE_URL = "sqlite:///./renmol.db"
 engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-# --- 2. MODEL DATABASE (Cetakan untuk Gudang) ---
-# Ini memberi tahu SQLite bentuk rak yang harus dibuat
 class MobilDB(Base):
-    __tablename__ = "mobil" # Nama tabel di database
-    
-    id = Column(Integer, primary_key=True, index=True) # ID otomatis (1, 2, 3...)
+    __tablename__ = "mobil"
+    id = Column(Integer, primary_key=True, index=True)
     nama_mobil = Column(String, index=True)
     kategori = Column(String)
     harga_per_hari = Column(Integer)
     status_tersedia = Column(Boolean, default=True)
 
-# Perintah agar SQLAlchemy langsung membuat file renmol.db dan tabelnya
 Base.metadata.create_all(bind=engine)
 
 # --- MENGAKTIFKAN FASTAPI ---
 app = FastAPI()
 
-# --- KONFIGURASI CORS ---
-# Mendaftarkan "negara" (URL) mana saja yang boleh mengakses API ini
 origins = [
     "http://localhost:3000",
-    "http://localhost:5173", # Biasanya digunakan oleh Vite
     "http://127.0.0.1:3000",
 ]
-
 app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins, # Mengizinkan asal URL di atas
-    allow_credentials=True,
-    allow_methods=["*"],   # Mengizinkan semua metode (GET, POST, PUT, DELETE)
-    allow_headers=["*"],   # Mengizinkan semua jenis header
+    CORSMiddleware, allow_origins=origins, allow_credentials=True, 
+    allow_methods=["*"], allow_headers=["*"],
 )
 
-# ... (Sisa kode database dan rute Anda tetap sama di bawah sini)
-
-# --- 3. FUNGSI BANTUAN (Membuka dan Menutup Pintu Gudang) ---
 def get_db():
     db = SessionLocal()
     try:
-        yield db # Serahkan ke FastAPI untuk dipakai
+        yield db
     finally:
-        db.close() # Tutup pintu gudang setelah selesai
+        db.close()
 
-# --- 4. SKEMA PYDANTIC (Dari materi sebelumnya) ---
+# --- FUNGSI SATPAM (Memeriksa Tiket Gelang) ---
+# [BARU] Fungsi ini akan dipasang di pintu-pintu VIP
+def cek_admin(token: str = Depends(oauth2_scheme)):
+    try:
+        # Membaca isi tiket
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username = payload.get("sub")
+        if username != "admin_renmol":
+            raise HTTPException(status_code=401, detail="Anda bukan Admin!")
+        return username
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Tiket Gelang tidak valid atau kedaluwarsa!")
+
 class MobilBaru(BaseModel):
     nama_mobil: str
     kategori: str
     harga_per_hari: int
     status_tersedia: bool = True
 
-# --- 5. RUTE APLIKASI KITA ---
+# --- RUTE APLIKASI KITA ---
 
-@app.get("/mobil")
-def lihat_daftar_mobil(db: Session = Depends(get_db)):
-    # Kepala Gudang (db) mengambil semua barang dari tabel MobilDB
-    armada = db.query(MobilDB).all()
-    return {
-        "pesan": "Berhasil mengambil data dari Database Permanen!",
-        "data_armada": armada
-    }
+# [BARU] Rute untuk Login dan Mendapatkan Token
+@app.post("/login")
+def login(form_data: OAuth2PasswordRequestForm = Depends()):
+    # Simulasi cek KTP (Username & Password)
+    if form_data.username == "admin_renmol" and form_data.password == "rahasia123":
+        # Cetak tiket gelang jika benar
+        tiket = jwt.encode({"sub": form_data.username}, SECRET_KEY, algorithm=ALGORITHM)
+        return {"access_token": tiket, "token_type": "bearer"}
+    
+    # Usir jika salah
+    raise HTTPException(status_code=401, detail="Username atau Password salah!")
 
-@app.post("/tambah-mobil")
-def tambah_mobil(mobil: MobilBaru, db: Session = Depends(get_db)):
-    # Mengemas data dari pengguna menjadi format Database
-    mobil_baru = MobilDB(
-        nama_mobil=mobil.nama_mobil,
-        kategori=mobil.kategori,
-        harga_per_hari=mobil.harga_per_hari,
-        status_tersedia=mobil.status_tersedia
-    )
-    
-    # Kepala Gudang menaruh barang ke kulkas (add) dan menguncinya (commit)
-    db.add(mobil_baru)
-    db.commit()
-    db.refresh(mobil_baru) # Meminta ID yang baru saja dibuat oleh SQLite
-    
-    return {
-        "pesan_sukses": f"Berhasil menyimpan {mobil_baru.nama_mobil} secara PERMANEN!",
-        "data": mobil_baru
-    }
-
-# --- 6. RUTE UNTUK MENGUBAH DATA (PUT) ---
-@app.put("/mobil/{id_mobil}")
-def update_mobil(id_mobil: int, data_update: MobilBaru, db: Session = Depends(get_db)):
-    # 1. Kepala Gudang mencari mobil berdasarkan ID
-    mobil_yg_dicari = db.query(MobilDB).filter(MobilDB.id == id_mobil).first()
-    
-    # 2. Jika mobil tidak ditemukan, lemparkan error 404 (Not Found)
-    if not mobil_yg_dicari:
-        raise HTTPException(status_code=404, detail="Mobil tidak ditemukan di garasi.")
-    
-    # 3. Jika ketemu, timpa data lamanya dengan data yang baru
-    mobil_yg_dicari.nama_mobil = data_update.nama_mobil
-    mobil_yg_dicari.kategori = data_update.kategori
-    mobil_yg_dicari.harga_per_hari = data_update.harga_per_hari
-    mobil_yg_dicari.status_tersedia = data_update.status_tersedia
-    
-    # 4. Simpan perubahan tersebut ke Kulkas (Database)
-    db.commit()
-    db.refresh(mobil_yg_dicari)
-    
-    return {
-        "pesan_sukses": f"Data mobil dengan ID {id_mobil} berhasil diperbarui!",
-        "data_terbaru": mobil_yg_dicari
-    }
-
-# --- 7. RUTE UNTUK MENGHAPUS DATA (DELETE) ---
-@app.delete("/mobil/{id_mobil}")
-def hapus_mobil(id_mobil: int, db: Session = Depends(get_db)):
-    # 1. Kepala Gudang mencari mobil berdasarkan ID
-    mobil_yg_dicari = db.query(MobilDB).filter(MobilDB.id == id_mobil).first()
-    
-    # 2. Jika mobil tidak ditemukan, lemparkan error 404
-    if not mobil_yg_dicari:
-        raise HTTPException(status_code=404, detail="Mobil tidak ditemukan di garasi.")
-    
-    # 3. Jika ketemu, hapus mobil tersebut dari Kulkas (Database)
-    db.delete(mobil_yg_dicari)
-    db.commit()
-    
-    return {
-        "pesan_sukses": f"Data mobil dengan ID {id_mobil} berhasil dihapus permanen dari sistem."
-    }
-
-# --- RUTE HALAMAN UTAMA ---
 @app.get("/")
 def halaman_utama():
-    return {
-        "pesan": "Selamat datang di API Sistem Rental Mobil RENMOL!",
-        "status": "Server berjalan dengan baik. Silakan kunjungi /docs untuk dokumentasi."
-    }
+    return {"pesan": "Selamat datang di API Sistem Rental Mobil RENMOL!"}
+
+# Rute GET dibiarkan TERBUKA (Siapapun boleh melihat brosur mobil)
+@app.get("/mobil")
+def lihat_daftar_mobil(db: Session = Depends(get_db)):
+    armada = db.query(MobilDB).all()
+    return {"pesan": "Berhasil mengambil data", "data_armada": armada}
+
+# Rute POST DIGEMBOK (Hanya admin yang boleh menambah armada)
+# [BARU] Perhatikan tambahan: admin: str = Depends(cek_admin)
+@app.post("/tambah-mobil")
+def tambah_mobil(mobil: MobilBaru, db: Session = Depends(get_db), admin: str = Depends(cek_admin)):
+    mobil_baru = MobilDB(**mobil.dict())
+    db.add(mobil_baru)
+    db.commit()
+    db.refresh(mobil_baru)
+    return {"pesan_sukses": f"Admin {admin} menambahkan {mobil_baru.nama_mobil}!", "data": mobil_baru}
+
+# Rute PUT DIGEMBOK
+@app.put("/mobil/{id_mobil}")
+def update_mobil(id_mobil: int, data_update: MobilBaru, db: Session = Depends(get_db), admin: str = Depends(cek_admin)):
+    mobil_yg_dicari = db.query(MobilDB).filter(MobilDB.id == id_mobil).first()
+    if not mobil_yg_dicari: raise HTTPException(status_code=404, detail="Mobil tidak ditemukan.")
+    
+    for key, value in data_update.dict().items():
+        setattr(mobil_yg_dicari, key, value)
+    db.commit()
+    db.refresh(mobil_yg_dicari)
+    return {"pesan_sukses": f"Admin {admin} memperbarui mobil ID {id_mobil}!"}
+
+# Rute DELETE DIGEMBOK
+@app.delete("/mobil/{id_mobil}")
+def hapus_mobil(id_mobil: int, db: Session = Depends(get_db), admin: str = Depends(cek_admin)):
+    mobil_yg_dicari = db.query(MobilDB).filter(MobilDB.id == id_mobil).first()
+    if not mobil_yg_dicari: raise HTTPException(status_code=404, detail="Mobil tidak ditemukan.")
+    
+    db.delete(mobil_yg_dicari)
+    db.commit()
+    return {"pesan_sukses": f"Admin {admin} menghapus mobil ID {id_mobil}."}

@@ -6,60 +6,269 @@
     <title>Katalog RENMOL</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-50 min-h-screen p-8">
+<body class="bg-gray-50 min-h-screen p-8 font-sans relative">
 
-    <h1 class="text-3xl font-bold text-center text-gray-800 mb-8">Katalog Mobil RENMOL</h1>
+    <div class="max-w-6xl mx-auto">
+        <div class="flex justify-between items-center mb-8">
+            <h1 class="text-4xl font-extrabold text-gray-800 tracking-tight">Katalog <span class="text-blue-600">RENMOL</span></h1>
+            
+            <button id="btn-logout" onclick="logout()" class="hidden px-4 py-2 bg-red-100 text-red-600 font-bold rounded-lg hover:bg-red-200 transition-colors">
+                Keluar (Logout)
+            </button>
+        </div>
 
-    <div id="tempat-katalog" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
-        <p class="text-center text-gray-500 col-span-full">Mengambil data dari garasi FastAPI Anda...</p>
+        <div id="section-login" class="max-w-md mx-auto bg-white p-6 rounded-xl shadow-md border border-gray-200 mb-10">
+            <h2 class="text-2xl font-bold text-center text-gray-800 mb-6">🔑 Login Admin</h2>
+            <form id="form-login" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-600 mb-1">Username</label>
+                    <input type="text" id="login-username" required class="w-full border border-gray-300 px-3 py-2 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-600 mb-1">Password</label>
+                    <input type="password" id="login-password" required class="w-full border border-gray-300 px-3 py-2 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+                <button type="submit" class="w-full bg-gray-800 hover:bg-gray-900 text-white font-bold py-2 px-4 rounded-lg transition-colors">
+                    Masuk
+                </button>
+            </form>
+        </div>
+
+        <div id="section-admin" class="hidden bg-white p-6 rounded-xl shadow-sm border border-blue-200 border-l-4 border-l-blue-600 mb-10">
+            <h2 class="text-xl font-bold text-gray-700 mb-4">➕ Tambah Armada Baru (Mode Admin)</h2>
+            <form id="form-tambah" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                <div>
+                    <label class="block text-sm font-medium text-gray-600 mb-1">Nama Mobil</label>
+                    <input type="text" id="input-nama" required class="w-full border border-gray-300 px-3 py-2 rounded-lg outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-600 mb-1">Kategori</label>
+                    <select id="input-kategori" class="w-full border border-gray-300 px-3 py-2 rounded-lg outline-none">
+                        <option value="Mobil Keluarga">Mobil Keluarga</option>
+                        <option value="SUV">SUV</option>
+                        <option value="City Car">City Car</option>
+                        <option value="Premium">Premium</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-600 mb-1">Harga / Hari (Rp)</label>
+                    <input type="number" id="input-harga" required class="w-full border border-gray-300 px-3 py-2 rounded-lg outline-none">
+                </div>
+                <div>
+                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">
+                        Simpan ke Garasi
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <div id="tempat-katalog" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            </div>
+    </div>
+
+    <div id="modal-edit" class="fixed inset-0 bg-black bg-opacity-50 hidden flex justify-center items-center z-50">
+        <div class="bg-white p-6 rounded-xl shadow-lg w-full max-w-md mx-4">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">✏️ Edit Data Mobil</h2>
+            <form id="form-edit" class="space-y-4">
+                <input type="hidden" id="edit-id">
+                <div><label class="block text-sm">Nama</label><input type="text" id="edit-nama" required class="w-full border px-3 py-2 rounded-lg"></div>
+                <div><label class="block text-sm">Kategori</label>
+                    <select id="edit-kategori" class="w-full border px-3 py-2 rounded-lg">
+                        <option value="Mobil Keluarga">Mobil Keluarga</option>
+                        <option value="SUV">SUV</option><option value="City Car">City Car</option><option value="Premium">Premium</option>
+                    </select>
+                </div>
+                <div><label class="block text-sm">Harga (Rp)</label><input type="number" id="edit-harga" required class="w-full border px-3 py-2 rounded-lg"></div>
+                <div><label class="block text-sm">Status</label>
+                    <select id="edit-status" class="w-full border px-3 py-2 rounded-lg">
+                        <option value="true">Tersedia</option><option value="false">Sedang Disewa</option>
+                    </select>
+                </div>
+                <div class="flex justify-end space-x-3 pt-4">
+                    <button type="button" onclick="tutupModal()" class="px-4 py-2 bg-gray-100 rounded-lg">Batal</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg">Simpan</button>
+                </div>
+            </form>
+        </div>
     </div>
 
     <script>
-        // 1. Mengetuk pintu pelayan FastAPI Anda (Pastikan alamatnya benar)
-        fetch('http://127.0.0.1:8000/mobil')
-            .then(response => response.json()) // 2. Membuka paket JSON
-            .then(data => {
-                const kotakKatalog = document.getElementById('tempat-katalog');
-                kotakKatalog.innerHTML = ''; // Hapus tulisan "Mengambil data..."
+        const urlAPI = 'http://127.0.0.1:8000';
+        
+        // 1. CEK STATUS SAKU BROWSER (Apakah ada Tiket?)
+        function getTiket() {
+            return localStorage.getItem('tiket_renmol');
+        }
 
-                const armada = data.data_armada;
+        function aturTampilan() {
+            const tiket = getTiket();
+            if (tiket) {
+                // Jika punya tiket: Sembunyikan form login, tampilkan form admin
+                document.getElementById('section-login').classList.add('hidden');
+                document.getElementById('section-admin').classList.remove('hidden');
+                document.getElementById('btn-logout').classList.remove('hidden');
+            } else {
+                // Jika tidak punya tiket: Tampilkan login, sembunyikan admin
+                document.getElementById('section-login').classList.remove('hidden');
+                document.getElementById('section-admin').classList.add('hidden');
+                document.getElementById('btn-logout').classList.add('hidden');
+            }
+            muatDataMobil(); // Muat ulang data setiap kali status berubah
+        }
 
-                // Jika garasi Anda di database kosong
-                if (armada.length === 0) {
-                    kotakKatalog.innerHTML = '<p class="text-center text-red-500 col-span-full">Garasi masih kosong. Silakan tambah mobil lewat Swagger UI.</p>';
-                    return;
-                }
+        // 2. FUNGSI LOGIN
+        document.getElementById('form-login').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // FastAPI meminta data login dalam bentuk "Form URL Encoded", bukan JSON biasa
+            const dataLogin = new URLSearchParams();
+            dataLogin.append('username', document.getElementById('login-username').value);
+            dataLogin.append('password', document.getElementById('login-password').value);
 
-                // 3. Mesin Fotokopi: Membuat kartu HTML untuk setiap mobil di database
-                armada.forEach(mobil => {
-                    const statusWarna = mobil.status_tersedia ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700';
-                    const statusTeks = mobil.status_tersedia ? 'Tersedia' : 'Disewa';
-
-                    const kartuMobil = `
-                        <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100 hover:shadow-lg transition-shadow">
-                            <div class="flex justify-between items-start mb-4">
-                                <h2 class="text-xl font-semibold text-gray-800">${mobil.nama_mobil}</h2>
-                                <span class="px-3 py-1 rounded-full text-xs font-medium ${statusWarna}">
-                                    ${statusTeks}
-                                </span>
-                            </div>
-                            <p class="text-gray-500 text-sm mb-4">Kategori: ${mobil.kategori}</p>
-                            <div class="pt-4 border-t border-gray-100">
-                                <p class="text-2xl font-bold text-blue-600">
-                                    Rp ${mobil.harga_per_hari.toLocaleString('id-ID')} <span class="text-sm font-normal text-gray-500">/ hari</span>
-                                </p>
-                            </div>
-                        </div>
-                    `;
-                    // Suntikkan kartu ke dalam kotak HTML
-                    kotakKatalog.innerHTML += kartuMobil;
-                });
+            fetch(`${urlAPI}/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: dataLogin
             })
-            .catch(error => {
-                // Jika server Python mati, tampilkan pesan error ini
-                document.getElementById('tempat-katalog').innerHTML = 
-                    '<p class="text-center text-red-500 col-span-full font-bold">Gagal terhubung! Pastikan Uvicorn FastAPI sedang menyala.</p>';
-            });
+            .then(response => {
+                if (!response.ok) throw new Error("Username/Password Salah");
+                return response.json();
+            })
+            .then(data => {
+                // Simpan tiket ke dalam saku browser (localStorage)
+                localStorage.setItem('tiket_renmol', data.access_token);
+                aturTampilan(); // Refresh layar
+                alert("Berhasil Login sebagai Admin!");
+            })
+            .catch(err => alert(err.message));
+        });
+
+        // 3. FUNGSI LOGOUT
+        function logout() {
+            localStorage.removeItem('tiket_renmol'); // Buang tiket dari saku
+            aturTampilan();
+            alert("Anda telah keluar dari mode Admin.");
+        }
+
+        // 4. FUNGSI MUAT DATA (GET - Bebas Akses)
+        function muatDataMobil() {
+            fetch(`${urlAPI}/mobil`)
+                .then(response => response.json())
+                .then(data => {
+                    const kotak = document.getElementById('tempat-katalog');
+                    kotak.innerHTML = ''; 
+                    const tiket = getTiket(); // Cek apakah yang melihat ini admin
+
+                    data.data_armada.forEach(mobil => {
+                        const statusWarna = mobil.status_tersedia ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700';
+                        
+                        // Hanya buat tombol Edit & Hapus JIKA PENGGUNA PUNYA TIKET (Login)
+                        let tombolAdmin = '';
+                        if (tiket) {
+                            tombolAdmin = `
+                                <div class="flex space-x-2">
+                                    <button onclick="bukaModal(${mobil.id}, '${mobil.nama_mobil}', '${mobil.kategori}', ${mobil.harga_per_hari}, ${mobil.status_tersedia})" class="text-blue-500 bg-blue-50 p-2 rounded-md">Edit</button>
+                                    <button onclick="hapusMobil(${mobil.id})" class="text-red-500 bg-red-50 p-2 rounded-md">Hapus</button>
+                                </div>
+                            `;
+                        }
+
+                        kotak.innerHTML += `
+                            <div class="bg-white rounded-xl shadow-md p-6 border flex flex-col justify-between">
+                                <div>
+                                    <h2 class="text-xl font-bold">${mobil.nama_mobil}</h2>
+                                    <span class="px-3 py-1 rounded-full text-xs font-medium ${statusWarna}">${mobil.status_tersedia ? 'Tersedia' : 'Disewa'}</span>
+                                    <p class="text-gray-500 text-sm mt-2">Kategori: ${mobil.kategori}</p>
+                                </div>
+                                <div class="pt-4 mt-4 border-t flex justify-between items-end">
+                                    <p class="text-xl font-bold text-blue-600">Rp ${mobil.harga_per_hari.toLocaleString('id-ID')}</p>
+                                    ${tombolAdmin}
+                                </div>
+                            </div>
+                        `;
+                    });
+                });
+        }
+
+        // 5. FUNGSI TAMBAH DATA (POST - Wajib Tiket)
+        document.getElementById('form-tambah').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const mobilBaru = {
+                nama_mobil: document.getElementById('input-nama').value,
+                kategori: document.getElementById('input-kategori').value,
+                harga_per_hari: parseInt(document.getElementById('input-harga').value),
+                status_tersedia: true
+            };
+
+            fetch(`${urlAPI}/tambah-mobil`, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${getTiket()}` // <--- MENUNJUKKAN TIKET
+                },
+                body: JSON.stringify(mobilBaru)
+            })
+            .then(res => {
+                if(!res.ok) throw new Error("Gagal! Tiket tidak valid.");
+                document.getElementById('form-tambah').reset();
+                muatDataMobil();
+            }).catch(err => alert(err.message));
+        });
+
+        // 6. FUNGSI HAPUS DATA (DELETE - Wajib Tiket)
+        function hapusMobil(id) {
+            if (confirm("Hapus mobil ini?")) {
+                fetch(`${urlAPI}/mobil/${id}`, { 
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${getTiket()}` } // <--- MENUNJUKKAN TIKET
+                })
+                .then(res => {
+                    if(!res.ok) throw new Error("Gagal! Anda bukan Admin.");
+                    muatDataMobil();
+                }).catch(err => alert(err.message));
+            }
+        }
+
+        // 7. FUNGSI EDIT DATA (PUT - Wajib Tiket)
+        function bukaModal(id, nama, kategori, harga, status) {
+            document.getElementById('edit-id').value = id;
+            document.getElementById('edit-nama').value = nama;
+            document.getElementById('edit-kategori').value = kategori;
+            document.getElementById('edit-harga').value = harga;
+            document.getElementById('edit-status').value = status ? "true" : "false";
+            document.getElementById('modal-edit').classList.remove('hidden');
+        }
+
+        function tutupModal() { document.getElementById('modal-edit').classList.add('hidden'); }
+
+        document.getElementById('form-edit').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const id = document.getElementById('edit-id').value;
+            const dataUpdate = {
+                nama_mobil: document.getElementById('edit-nama').value,
+                kategori: document.getElementById('edit-kategori').value,
+                harga_per_hari: parseInt(document.getElementById('edit-harga').value),
+                status_tersedia: document.getElementById('edit-status').value === "true"
+            };
+
+            fetch(`${urlAPI}/mobil/${id}`, {
+                method: 'PUT',
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${getTiket()}` // <--- MENUNJUKKAN TIKET
+                },
+                body: JSON.stringify(dataUpdate)
+            })
+            .then(res => {
+                if(!res.ok) throw new Error("Gagal Edit! Tiket tidak valid.");
+                tutupModal();
+                muatDataMobil();
+            }).catch(err => alert(err.message));
+        });
+
+        // --- JALANKAN SAAT HALAMAN DIBUKA ---
+        aturTampilan();
+
     </script>
 </body>
 </html>
