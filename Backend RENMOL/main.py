@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from sqlalchemy import create_engine, Column, Integer, String, Boolean
 from sqlalchemy.orm import sessionmaker, declarative_base, Session
 from fastapi import FastAPI, Depends, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 
 # --- 1. KONFIGURASI DATABASE SQLITE ---
 # Membuat file bernama 'renmol.db' di folder yang sama
@@ -27,6 +28,24 @@ Base.metadata.create_all(bind=engine)
 
 # --- MENGAKTIFKAN FASTAPI ---
 app = FastAPI()
+
+# --- KONFIGURASI CORS ---
+# Mendaftarkan "negara" (URL) mana saja yang boleh mengakses API ini
+origins = [
+    "http://localhost:3000",
+    "http://localhost:5173", # Biasanya digunakan oleh Vite
+    "http://127.0.0.1:3000",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins, # Mengizinkan asal URL di atas
+    allow_credentials=True,
+    allow_methods=["*"],   # Mengizinkan semua metode (GET, POST, PUT, DELETE)
+    allow_headers=["*"],   # Mengizinkan semua jenis header
+)
+
+# ... (Sisa kode database dan rute Anda tetap sama di bawah sini)
 
 # --- 3. FUNGSI BANTUAN (Membuka dan Menutup Pintu Gudang) ---
 def get_db():
@@ -115,4 +134,12 @@ def hapus_mobil(id_mobil: int, db: Session = Depends(get_db)):
     
     return {
         "pesan_sukses": f"Data mobil dengan ID {id_mobil} berhasil dihapus permanen dari sistem."
+    }
+
+# --- RUTE HALAMAN UTAMA ---
+@app.get("/")
+def halaman_utama():
+    return {
+        "pesan": "Selamat datang di API Sistem Rental Mobil RENMOL!",
+        "status": "Server berjalan dengan baik. Silakan kunjungi /docs untuk dokumentasi."
     }

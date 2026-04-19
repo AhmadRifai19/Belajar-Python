@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Katalog RENMOL</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen p-8">
+
+    <h1 class="text-3xl font-bold text-center text-gray-800 mb-8">Katalog Mobil RENMOL</h1>
+
+    <div id="tempat-katalog" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+        <p class="text-center text-gray-500 col-span-full">Mengambil data dari garasi FastAPI Anda...</p>
+    </div>
+
+    <script>
+        // 1. Mengetuk pintu pelayan FastAPI Anda (Pastikan alamatnya benar)
+        fetch('http://127.0.0.1:8000/mobil')
+            .then(response => response.json()) // 2. Membuka paket JSON
+            .then(data => {
+                const kotakKatalog = document.getElementById('tempat-katalog');
+                kotakKatalog.innerHTML = ''; // Hapus tulisan "Mengambil data..."
+
+                const armada = data.data_armada;
+
+                // Jika garasi Anda di database kosong
+                if (armada.length === 0) {
+                    kotakKatalog.innerHTML = '<p class="text-center text-red-500 col-span-full">Garasi masih kosong. Silakan tambah mobil lewat Swagger UI.</p>';
+                    return;
+                }
+
+                // 3. Mesin Fotokopi: Membuat kartu HTML untuk setiap mobil di database
+                armada.forEach(mobil => {
+                    const statusWarna = mobil.status_tersedia ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700';
+                    const statusTeks = mobil.status_tersedia ? 'Tersedia' : 'Disewa';
+
+                    const kartuMobil = `
+                        <div class="bg-white rounded-xl shadow-md p-6 border border-gray-100 hover:shadow-lg transition-shadow">
+                            <div class="flex justify-between items-start mb-4">
+                                <h2 class="text-xl font-semibold text-gray-800">${mobil.nama_mobil}</h2>
+                                <span class="px-3 py-1 rounded-full text-xs font-medium ${statusWarna}">
+                                    ${statusTeks}
+                                </span>
+                            </div>
+                            <p class="text-gray-500 text-sm mb-4">Kategori: ${mobil.kategori}</p>
+                            <div class="pt-4 border-t border-gray-100">
+                                <p class="text-2xl font-bold text-blue-600">
+                                    Rp ${mobil.harga_per_hari.toLocaleString('id-ID')} <span class="text-sm font-normal text-gray-500">/ hari</span>
+                                </p>
+                            </div>
+                        </div>
+                    `;
+                    // Suntikkan kartu ke dalam kotak HTML
+                    kotakKatalog.innerHTML += kartuMobil;
+                });
+            })
+            .catch(error => {
+                // Jika server Python mati, tampilkan pesan error ini
+                document.getElementById('tempat-katalog').innerHTML = 
+                    '<p class="text-center text-red-500 col-span-full font-bold">Gagal terhubung! Pastikan Uvicorn FastAPI sedang menyala.</p>';
+            });
+    </script>
+</body>
+</html>
