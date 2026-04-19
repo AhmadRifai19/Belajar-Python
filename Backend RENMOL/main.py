@@ -7,6 +7,8 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
 from jose import jwt, JWTError
 import os
+from typing import Optional 
+from fastapi import File, Form, UploadFile, Depends, HTTPException
 from dotenv import load_dotenv
 
 # [PERBAIKAN 1] Import Cloudinary yang sebelumnya hilang!
@@ -131,3 +133,36 @@ def hapus_mobil(id_mobil: int, db: Session = Depends(get_db), admin: str = Depen
     db.delete(mobil_yg_dicari)
     db.commit()
     return {"pesan": "Berhasil dihapus"}
+
+@app.put("/mobil/{id}")
+async def edit_mobil(
+    id: int,
+    nama_mobil: str = Form(...),
+    kategori: str = Form(...),
+    harga_per_hari: int = Form(...),
+    gambar: Optional[UploadFile] = File(None), # Gambar bersifat opsional (boleh kosong)
+    token: str = Depends(oauth2_scheme)
+):
+    try:
+        # 1. Siapkan data teks yang akan diubah
+        data_update = {
+            "nama_mobil": nama_mobil,
+            "kategori": kategori,
+            "harga_per_hari": harga_per_hari
+        }
+
+        # 2. Jika admin mengunggah gambar baru, kirim ke Cloudinary
+        if gambar:
+            upload_result = cloudinary.uploader.upload(gambar.file)
+            data_update["gambar_url"] = upload_result["secure_url"]
+
+        # 3. Update data di database Supabase berdasarkan ID
+        response = supabase.table("mobil").update(data_update).eq("id", id).execute()
+        
+        if not response.data:
+            raise HTTPException(status_code=404, detail="Mobil tidak ditemukan")
+            
+        return {"message": "Data mobil berhasil diperbarui!", "data": response.data[0]}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Gagal mengedit data: {str(e)}")

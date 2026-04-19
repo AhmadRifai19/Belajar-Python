@@ -19,7 +19,8 @@ export default function HalamanUtama() {
   const [namaMobil, setNamaMobil] = useState('');
   const [kategori, setKategori] = useState('Mobil Keluarga');
   const [harga, setHarga] = useState('');
-  const [gambar, setGambar] = useState<File | null>(null); 
+  const [gambar, setGambar] = useState<File | null>(null);
+  const [editId, setEditId] = useState<number | null>(null);
   
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -40,6 +41,18 @@ export default function HalamanUtama() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const klikEdit = (mobil: Mobil) => {
+    setEditId(mobil.id);
+    setNamaMobil(mobil.nama_mobil);
+    setKategori(mobil.kategori);
+    setHarga(mobil.harga_per_hari.toString());
+    // Gambar di-set null karena kita tidak bisa menarik file dari internet ke input file lokal
+    setGambar(null); 
+    
+    // Scroll layar ke atas agar admin melihat form
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -65,37 +78,43 @@ export default function HalamanUtama() {
     setIsLoggedIn(false);
   };
 
-  const handleTambahMobil = async (e: React.FormEvent<HTMLFormElement>) => {
+const handleSubmitMobil = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
     const dataForm = new FormData();
     dataForm.append('nama_mobil', namaMobil);
     dataForm.append('kategori', kategori);
     dataForm.append('harga_per_hari', harga);
-    if (gambar) {
-      dataForm.append('gambar', gambar);
-    }
+    if (gambar) dataForm.append('gambar', gambar);
 
-    // [PERBAIKAN 3] Menggunakan backtick (`) agar URL terbaca dengan benar
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/tambah-mobil`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${localStorage.getItem('token')}` 
-      },
-      body: dataForm,
-    });
-    
-    if (res.ok) {
-      setNamaMobil(''); setHarga(''); setGambar(null);
-      const inputGambar = document.getElementById('input-gambar') as HTMLInputElement | null;
-      if (inputGambar) inputGambar.value = ""; 
-      muatData();
-      alert("Mobil berhasil ditambahkan!");
-    } else {
-      // [BARU] Menangkap pesan error asli dari backend
-      const errorData = await res.json();
-      console.error("Detail Error:", errorData);
-      alert(`Gagal menambah data! Alasan: ${JSON.stringify(errorData.detail)}`);
+    // Tentukan URL dan Metode berdasarkan status editId
+    const url = editId 
+      ? `${process.env.NEXT_PUBLIC_API_URL}/mobil/${editId}` // URL untuk Update
+      : `${process.env.NEXT_PUBLIC_API_URL}/tambah-mobil`;   // URL untuk Tambah
+      
+    const method = editId ? 'PUT' : 'POST';
+
+    try {
+      const res = await fetch(url, {
+        method: method,
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+        body: dataForm,
+      });
+      
+      if (res.ok) {
+        // Bersihkan form
+        setNamaMobil(''); setHarga(''); setGambar(null); setEditId(null);
+        const inputGambar = document.getElementById('input-gambar') as HTMLInputElement | null;
+        if (inputGambar) inputGambar.value = ""; 
+        
+        muatData();
+        alert(editId ? "Mobil berhasil diubah!" : "Mobil berhasil ditambahkan!");
+      } else {
+        const errData = await res.json();
+        alert(`Gagal menyimpan: ${JSON.stringify(errData.detail)}`);
+      }
+    } catch (error) {
+      console.error("Terjadi kesalahan:", error);
     }
   };
 
@@ -137,7 +156,7 @@ export default function HalamanUtama() {
           <div className="mb-12 bg-white p-8 rounded-3xl shadow-sm border border-indigo-100 relative overflow-hidden">
             <div className="absolute top-0 left-0 w-2 h-full bg-indigo-500"></div>
             <h3 className="text-lg font-bold mb-6">➕ Tambah Unit Baru</h3>
-            <form onSubmit={handleTambahMobil} className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+            <form onSubmit={handleSubmitMobil} className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
               <div>
                 <label className="block text-xs font-bold text-slate-500 mb-2">Nama Kendaraan</label>
                 <input type="text" value={namaMobil} onChange={(e) => setNamaMobil(e.target.value)} required className="w-full border px-4 py-3 rounded-xl" />
@@ -185,7 +204,10 @@ export default function HalamanUtama() {
                 <div className="pt-4 mt-2 border-t border-slate-100 flex justify-between items-end">
                   <p className="text-2xl font-black text-indigo-600">Rp {mobil.harga_per_hari.toLocaleString('id-ID')}</p>
                   {isLoggedIn && (
-                    <button onClick={() => hapusMobil(mobil.id)} className="text-red-500 bg-red-50 p-2 rounded-lg">Hapus</button>
+                    <div className="flex gap-2">
+                      <button onClick={() => klikEdit(mobil)} className="text-blue-500 bg-blue-50 p-2 rounded-lg text-sm font-bold">Edit</button>
+                      <button onClick={() => hapusMobil(mobil.id)} className="text-red-500 bg-red-50 p-2 rounded-lg text-sm font-bold">Hapus</button>
+                    </div>
                   )}
                 </div>
               </div>
