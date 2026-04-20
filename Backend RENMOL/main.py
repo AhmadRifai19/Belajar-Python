@@ -135,34 +135,39 @@ def hapus_mobil(id_mobil: int, db: Session = Depends(get_db), admin: str = Depen
     return {"pesan": "Berhasil dihapus"}
 
 @app.put("/mobil/{id}")
-async def edit_mobil(
+def edit_mobil(
     id: int,
     nama_mobil: str = Form(...),
     kategori: str = Form(...),
     harga_per_hari: int = Form(...),
-    gambar: Optional[UploadFile] = File(None), # Gambar bersifat opsional (boleh kosong)
-    token: str = Depends(oauth2_scheme)
+    gambar: Optional[UploadFile] = File(None), 
+    db: Session = Depends(get_db),          # Menggunakan SQLAlchemy
+    admin: str = Depends(cek_admin)         # Menggunakan sistem admin yang sudah Anda buat
 ):
     try:
-        # 1. Siapkan data teks yang akan diubah
-        data_update = {
-            "nama_mobil": nama_mobil,
-            "kategori": kategori,
-            "harga_per_hari": harga_per_hari
-        }
-
-        # 2. Jika admin mengunggah gambar baru, kirim ke Cloudinary
-        if gambar:
-            upload_result = cloudinary.uploader.upload(gambar.file)
-            data_update["gambar_url"] = upload_result["secure_url"]
-
-        # 3. Update data di database Supabase berdasarkan ID
-        response = supabase.table("mobil").update(data_update).eq("id", id).execute()
-        
-        if not response.data:
+        # 1. Cari mobil berdasarkan ID terlebih dahulu
+        mobil_yg_diedit = db.query(MobilDB).filter(MobilDB.id == id).first()
+        if not mobil_yg_diedit:
             raise HTTPException(status_code=404, detail="Mobil tidak ditemukan")
-            
-        return {"message": "Data mobil berhasil diperbarui!", "data": response.data[0]}
+
+        # 2. Timpa data lama dengan data baru dari form
+        mobil_yg_diedit.nama_mobil = nama_mobil
+        mobil_yg_diedit.kategori = kategori
+        mobil_yg_diedit.harga_per_hari = harga_per_hari
+
+        # 3. Jika admin mengunggah gambar baru, kirim ke Cloudinary
+        if gambar:
+            hasil_upload = cloudinary.uploader.upload(gambar.file)
+            mobil_yg_diedit.gambar_url = hasil_upload.get("secure_url")
+
+        # 4. Simpan perubahan secara permanen ke database
+        db.commit()
+        db.refresh(mobil_yg_diedit)
+        
+        return {"pesan": "Data mobil berhasil diperbarui!", "data": mobil_yg_diedit}
 
     except Exception as e:
+        # Cegah HTTPException 404 tertimpa oleh error 500
+        if isinstance(e, HTTPException):
+            raise e
         raise HTTPException(status_code=500, detail=f"Gagal mengedit data: {str(e)}")
